@@ -1,38 +1,26 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.SceneManagement;
+﻿using UnityEngine;
 
 public class StaminaBar : MonoBehaviour
 {
     public GameObject stamina;
     public float time, timeNew;
-    public GameObject sceneloader;
+    public ChangeScene changeScene;
 
-    private void Awake()
+    private void Start()
     {
+        changeScene = GameObject.FindGameObjectWithTag("SceneLoader").GetComponent<ChangeScene>();
+       // time = changeScene.countDownRange;
         stamina = this.gameObject;
-    }
-    void OnEnable()
-    {
-        time = sceneloader.GetComponent<changescene>().RN;        
-        timeNew = time;
     }
     
     void Update()
     {
-        timeNew = sceneloader.GetComponent<changescene>().RN;
+       // timeNew = changeScene.countDownRange;
 
-        if (timeNew<0)
-        {
-            timeNew = 0;
-        }
-
+        if (timeNew > 0)
+            stamina.transform.localScale = new Vector3((timeNew / time), 1, 1);
+              
         else
-        {
-                stamina.transform.localScale = new Vector3((timeNew / time), 1, 1);                        
-        }
-        
-    }
-   
+            timeNew = 0;
+    }   
 }

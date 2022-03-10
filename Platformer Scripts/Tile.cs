@@ -1,34 +1,26 @@
 ﻿using System;
+using UnityEngine.Tilemaps;
+public class TopTile:Tile {
 
-public class Tile {
-
-    Action<Tile> OnTileTypeChange;
-    public enum Type { TEST,empty}
-    public Type type;
-    public float type2;    
-    public int x { get; private set; }
-    public int y { get; private set; }
-    public int z { get; private set; }
-    public bool connectToNeighbor{get; private set;}
+    public enum TopTileType { TEST,empty}
+    public TopTileType topTileType;
 
     static Type GetRandomEnum<Type>()
     {
         System.Array A = System.Enum.GetValues(typeof(Type));
         Type V = (Type)A.GetValue(UnityEngine.Random.Range(0, A.Length));
         return V;
+        
     }
 
-    public Tile(int x, int y, int z, int type2)
+    public TopTile(int x, int y, int z, int type2)
     {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        //Debug.Log(type2);
-        this.type = GetRandomEnum<Type>();
-        if (z == 0)
+        this.topTileType = GetRandomEnum<TopTileType>();
+    }
+       /* if (z == 0)
         {
             
-            /*switch (type2)
+            switch (type2)
             {
                     case 1:
                     type = Type.TEST;
@@ -65,9 +57,9 @@ public class Tile {
                    // default:
                    // type = Type.TEST2;
                    // break;
-            }*/
-        }      
-    }
+            }
+        }      */
+    
    
     /*public Type SetTileType (Tile.Type type)
     {
@@ -119,8 +111,8 @@ public class Tile {
         return neighbors;
     }
     */
-    public void RegisterOnTileTypeChange(Action<Tile> callback)
+    /*public void RegisterOnTileTypeChange(Action<Tile> callback)
     {
         OnTileTypeChange += callback;
-    }
+    }*/
 }

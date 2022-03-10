@@ -1,99 +1,258 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-
+using System.Linq;
+using InventoryRelated;
+using PixelCrushers.DialogueSystem.Demo;
+using UnityEngine.Rendering.PostProcessing;
+using System.Collections;
 public class PlatformLoad : MonoBehaviour
 {
-    public GameObject chunkGO;
-    public static float renderDist=4;    
-    public static System.Collections.Generic.List<Vector3> availablePlaces;
+    public Transform player;
+    public static float renderDistance=4;    
+    public static List<Vector3> tileLocations;
     static Dictionary<Vector2, Chunk> chunkMap;
-    private GameObject[] bottom;
-    private GameObject[] middle ;
-    private GameObject[] top ;
-    public static GameObject[] chest  { get; private set; }
-    public static GameObject[] coin { get; private set; }
-    public ItemObject[] items;
-    public static GameObject[] enemylist { get; private set; }
-    System.Collections.Generic.List<GameObject> prefabList = new System.Collections.Generic.List<GameObject>();
+    private GameObject[] platformAssets;
+    private GameObject[] commonAssets;
+    private AssetBundle assetBundle;
+    private AssetBundle commonAssetBundle;
+    public List<GameObject> bottom;
+    public List<GameObject> middle ;
+    public List<GameObject> top ;
+    public static GameObject chest { get; private set; }
+    public static GameObject coin { get; private set; }
+    public static List<GameObject> enemylist { get; private set; }
     public GameObject[] Prefab;   
     int prefabIndex;
+    private BoxCollider2D mainCollider;
+    private EdgeCollider2D[] sideColliders;
+    int bottomColliderPosition = -25;
+    float time = 1f;
+    Vector3 vectorStart = new Vector3(0,0,0);
+    bool fluctuate= false;
+    bool running = false;
 
-    private void OnDisable()
+   SmoothCameraWithBumper cam;
+    private void Awake()
     {
+        LoadAssetBundles();
+        LoadAssets();
+        FindReferences();
+        ResetContainers();        
+        RandomizeLevelContents();        
+
         AssetBundle.UnloadAllAssetBundles(false);
-        prefabList.Clear();
     }
-    private void OnEnable()
-    {
-     // items = AssetLoad.LoadAllItemsAt("/platform/" + changescene.test + "/items");
-        chest = AssetLoad.LoadAllPrefabsAt("/chest");
-        coin = AssetLoad.LoadAllPrefabsAt("/coin");
-        bottom = AssetLoad.LoadAllPrefabsAt("/platform/" + changescene.PLATFORMFOLDER + "/bottom");
-        middle = AssetLoad.LoadAllPrefabsAt("/platform/" + changescene.PLATFORMFOLDER + "/middle");
-        top = AssetLoad.LoadAllPrefabsAt("/platform/" + changescene.PLATFORMFOLDER + "/top");
-        enemylist = AssetLoad.LoadAllPrefabsAt("/platform/" + changescene.PLATFORMFOLDER + "/enemy");                
-        Prefab = new GameObject[changescene.endOfLevel + 1];
-        chunkMap = new Dictionary<Vector2, Chunk>();
-        availablePlaces = new System.Collections.Generic.List<Vector3>();
-        prefabIndex = Random.Range(0, bottom.Length - 1);
-        Prefab[0] = bottom[prefabIndex];
 
-        for (int i = 1; i < changescene.endOfLevel; i++)
+    private void Start(){
+        cam = Camera.main.GetComponent<SmoothCameraWithBumper>();
+        sideColliders = GameObject.FindGameObjectWithTag("sideBorder").GetComponents<EdgeCollider2D>();
+        player = GameObject.FindGameObjectWithTag("Player").transform;
+        var list1 = new List<Vector2>();
+        list1.Add(new Vector2(0,-25));
+        list1.Add(new Vector2(0,(Chunk.screenHeight*(ChangeScene.endOfLevel+1))));
+        sideColliders[0].SetPoints(list1);
+        //sideColliders[0].offset = new Vector2(Chunk.screenWidth/2,(Chunk.screenHeight*(ChangeScene.endOfLevel+1)));
+        var list2 = new List<Vector2>();
+        list2.Add(new Vector2(Chunk.screenWidth,-25));
+        list2.Add(new Vector2(Chunk.screenWidth,Chunk.screenHeight*(ChangeScene.endOfLevel+1)));
+        sideColliders[1].SetPoints(list2);
+
+        var list3 = new List<Vector2>();
+        list3.Add(new Vector2((sideColliders[1].offset.x+Chunk.screenWidth),bottomColliderPosition));
+        list3.Add(new Vector2((sideColliders[0].offset.x),bottomColliderPosition));
+        sideColliders[2].SetPoints(list3);
+        //sideColliders[1].offset = new Vector2(Chunk.screenWidth/2,(Chunk.screenHeight*(ChangeScene.endOfLevel+1)));
+
+
+    }
+
+    private void LoadAssetBundles()
+    {
+        ChangeScene.PLATFORMFOLDER = "test";
+        assetBundle = AssetLoad.LoadAssetBundle("/platform/" + ChangeScene.PLATFORMFOLDER);
+        commonAssetBundle= AssetLoad.LoadAssetBundle("/common");
+    }
+
+    private void LoadAssets()
+    {
+        platformAssets = AssetLoad.LoadAllPrefabsAt(assetBundle);
+        commonAssets = AssetLoad.LoadAllPrefabsAt(commonAssetBundle);
+    }
+
+    private void FindReferences()
+    {
+        chest = FindObject("chest");
+        coin = FindObject("coin");
+        bottom = FindObjects("bottom"); 
+        middle =FindObjects("middle");
+        top = FindObjects("top");
+        enemylist = FindObjects("enemy");   
+    }
+
+    private void ResetContainers()
+    {
+        Prefab = new GameObject[ChangeScene.endOfLevel + 1];
+        chunkMap = new Dictionary<Vector2, Chunk>();
+        tileLocations = new System.Collections.Generic.List<Vector3>();
+    }
+
+    private int RandomIndex(List<GameObject> list){
+        return UnityEngine.Random.Range(0, list.Count-1);
+    }
+
+    private void RandomizeLevelContents()
+    {
+        Prefab[0] = bottom[RandomIndex(bottom)];
+        
+        for (int i = 1; i < ChangeScene.endOfLevel; i++)
         {
-            prefabIndex = Random.Range(0, middle.Length);
-            Prefab[i] = middle[prefabIndex];
+            var valid = false;
+
+            while (!valid) {
+                
+                Prefab[i] = middle[RandomIndex(middle)];
+
+                
+                
+                if (conditionCheck(Prefab[i-1].GetComponent<Chunk>().topConditions,(Prefab[i].GetComponent<Chunk>().bottomConditions))) 
+                    valid = true;                
+            }
         }
-        
-        prefabIndex = Random.Range(0, top.Length - 1);
-        Prefab[changescene.endOfLevel] = top[prefabIndex];
-        
-        for (int i = 0; i < Prefab.Length; i++)
+
+        Prefab[ChangeScene.endOfLevel] = top[RandomIndex(bottom)];
+    }
+
+    public bool conditionCheck(Chunk.Condition[] conditions, Chunk.Condition[] compareConditions){
+       var valid = false;
+            foreach(Chunk.Condition conditionToCompare in compareConditions){
+                 if(conditions.Contains(conditionToCompare)){
+                        valid=true;
+                 }                  
+                 
+                 else{valid= false;}
+                   
+            }
+            
+        return valid;
+
+    }
+
+    public List<GameObject> FindObjects(string search)
+    {
+        List<GameObject> results = new List<GameObject>();
+        foreach ( GameObject g in platformAssets)
         {
-            prefabList.Add(Prefab[i]);
-        }       
+            if (g.name.Contains(search))
+                results.Add(g);
+
+        }
+        return results;
+    }
+    public GameObject FindObject(string search)
+    {
+        foreach (GameObject g in commonAssets)
+        {
+            var temp = g;
+           if (g.name.Contains(search))
+                return temp;
+
+        }
+        return null;
     }
 
     void Update()
     {
-        if (SceneManager.GetActiveScene().name == "platformer")
-        {
-            FindChunksToLoad();
-            DeleteChunkAt();
-        }
+        FindChunksToLoad();
+        DeleteChunkAt();
         
-
-        /* float mouseX = (Camera.main.ScreenToWorldPoint(Input.mousePosition).x); 
-         float mouseY = (Camera.main.ScreenToWorldPoint(Input.mousePosition).y);
-
-         Tile t = GetTileAt(mouseX, mouseY);
-
-         Debug.Log(t.x + ", " + t.y);
-
-         if (Input.GetKeyDown("w") && t!=null)
-         {
-             if (t.type == Tile.Type.stone)
-                 t.SetTileType(Tile.Type.dirt);
-             else if (t.type == Tile.Type.dirt)
-                 t.SetTileType(Tile.Type.stone);
-         }*/
     }
+    void FixedUpdate()
+    {
+        CheckDisableCameraMovement();
+    }
+       private void CheckDisableCameraMovement()
+       {
+           
+           if(player==null)
+           player=GameObject.FindGameObjectWithTag("Player").transform;
+
+            if(player.transform.position.y<=(bottomColliderPosition+6))
+            {
+                cam.freezeY=true;              
+                if(player.transform.position.y<=(bottomColliderPosition+2)){
+                    Camera.main.transform.GetChild(0).gameObject.GetComponent<SpriteRenderer>().enabled=true;
+                
+                    if(!running)
+                    {                    
+                    StartCoroutine(Fluctuate());
+                    }
+                }
+                else if(player.transform.position.y>(bottomColliderPosition+2))
+                {
+                    Camera.main.transform.GetChild(0).gameObject.GetComponent<SpriteRenderer>().enabled=false;
+                
+                    if(running)
+                    {
+                        StopCoroutine(Fluctuate());
+                        running = false;           
+                    }
+                    var bloom = Camera.main.transform.GetChild(0).gameObject.GetComponent<PostProcessVolume>().profile.GetSetting<Bloom>();
+                  bloom.intensity.Interp(0f,0f,Time.deltaTime);
+                }
+            }
+            else
+            {
+                cam.freezeY=false;
+                time =1f;
+                    
+                if(running)
+                {
+                    StopCoroutine(Fluctuate());
+                    running = false;
+                }
+                 
+               Camera.main.transform.GetChild(0).gameObject.GetComponent<SpriteRenderer>().enabled=false;
+           }
+           
+       
+       }
+
+public IEnumerator Fluctuate()
+{
+    running=true;
+    var bloom = Camera.main.transform.GetChild(0).gameObject.GetComponent<PostProcessVolume>().profile.GetSetting<Bloom>();
+    if(fluctuate)
+    {
+                
+        yield return new WaitForFixedUpdate();
+        bloom.intensity.Interp(bloom.intensity,.1f,Time.deltaTime);
+        if(bloom.intensity>=.008f)
+            fluctuate=false;
+        StartCoroutine(Fluctuate());
+    }
+    else
+    {
+        yield return new WaitForFixedUpdate();
+        bloom.intensity.Interp(bloom.intensity,0f,Time.deltaTime);
+        if(bloom.intensity<=.001f)
+            fluctuate=true;
+        StartCoroutine(Fluctuate());
+    }
+}
 
     void FindChunksToLoad()
     {
-        int yPos = (int)transform.position.y;
-        if (yPos<0)
-        {
-            yPos = 0;
-        }
+        int yPos = (int)player.position.y;        
 
-        for (int i = 0; i < 1; i++)
-        {
+        //horizontal
+        //for (int i = 0; i < 1; i++)
+        //{
+        //vertical
             for (int j = yPos; j < yPos +2*Chunk.screenHeight; j += Chunk.screenHeight)
             {
-                MakeChunkAt(i, j);
+                MakeChunkAt(0, j);
             }
-        }
+        //}
     }
   
     void MakeChunkAt(int x, int y)
@@ -101,58 +260,39 @@ public class PlatformLoad : MonoBehaviour
         x = (int)(x / (float)Chunk.screenWidth) * Chunk.screenWidth;
         y = (int)(y / (float)Chunk.screenHeight) * Chunk.screenHeight;
 
-        if (chunkMap.ContainsKey(new Vector2(x, y)) == false&&y<= changescene.endOfLevel * Chunk.screenHeight)
+        if (chunkMap.ContainsKey(new Vector2(x, y)) == false&&y<= ChangeScene.endOfLevel * Chunk.screenHeight)
         {
-            if (y == 0){
-              
-                int prefabIndex = 0;
-                GameObject chunk = Instantiate(prefabList[prefabIndex], new Vector3(x, y, 0f), Quaternion.identity);
-
-                chunkMap.Add(new Vector2(x, y), chunk.GetComponent<Chunk>());
-                
-            }
-
-            if (y== changescene.endOfLevel * Chunk.screenHeight)
+            if(y>= 0 && y <= ChangeScene.endOfLevel * Chunk.screenHeight)
             {
-                int prefabIndex = prefabList.Count-1;
-              
-                
-                GameObject chunk = Instantiate(prefabList[prefabIndex], new Vector3(x, y, 0f), Quaternion.identity);
-
-                chunkMap.Add(new Vector2(x, y), chunk.GetComponent<Chunk>());
-
-            }
-
-            if (y > changescene.endOfLevel * Chunk.screenHeight)
-            {         
-            }
-
-            if(y>0&&y< changescene.endOfLevel * Chunk.screenHeight)
-            {
-                Debug.Log(prefabList.Count-1);
-                int prefabIndex = UnityEngine.Random.Range(1, prefabList.Count-1);
-
-               
-                GameObject chunk = Instantiate(prefabList[prefabIndex], new Vector3(x, y, 0f), Quaternion.identity);
-
+                GameObject chunk = Instantiate(Prefab[(int)y/Chunk.screenHeight], new Vector3(x, y, 0f), Quaternion.identity);
                 chunkMap.Add(new Vector2(x, y), chunk.GetComponent<Chunk>());
             }        
-        }      
+        }   
+        if (y-(2*Chunk.screenHeight)>bottomColliderPosition)
+        {
+            bottomColliderPosition= y-(2*Chunk.screenHeight);
+        
+            Debug.Log(bottomColliderPosition + "Bottom Collider");
+        
+            var list3 = new List<Vector2>();
+            list3.Add(new Vector2((sideColliders[1].offset.x+Chunk.screenWidth),bottomColliderPosition));
+            list3.Add(new Vector2((sideColliders[0].offset.x),bottomColliderPosition));
+            sideColliders[2].SetPoints(list3);   
+            cam.pos= bottomColliderPosition;
+        }
     }
 
     void DeleteChunkAt()
     {
-        System.Collections.Generic.List<Chunk> deleteChunks = new System.Collections.Generic.List<Chunk>(chunkMap.Values);
+        List<Chunk> deleteChunks = new List<Chunk>(chunkMap.Values);
         Queue<Chunk> deleteQueue = new Queue<Chunk>();
 
-        for (int i = 0; i < deleteChunks.Count; i++)
+        foreach (Chunk chunk in deleteChunks)
         {
-            float distance = Vector3.Distance(transform.position, deleteChunks[i].transform.position);
+            float distanceFromGameObject = Vector3.Distance(player.position, chunk.transform.position);
 
-            if (distance > renderDist * Chunk.screenHeight)
-            {
-                deleteQueue.Enqueue(deleteChunks[i]);
-            }
+            if (distanceFromGameObject > renderDistance * Chunk.screenHeight)
+                deleteQueue.Enqueue(chunk);
         }
 
         while (deleteQueue.Count > 0)
@@ -168,35 +308,12 @@ public class PlatformLoad : MonoBehaviour
     {
         x = Mathf.FloorToInt(x / (float)Chunk.screenWidth) * Chunk.screenWidth;
         y = Mathf.FloorToInt(y / (float)Chunk.screenHeight) * Chunk.screenHeight;
+
         Vector2 chunkPos = new Vector2(x, y);
 
         if (chunkMap.ContainsKey(chunkPos))
-        {
             return chunkMap[chunkPos];
-        }
 
         else return null;
     }
-    
-    /*public Tile GetTileAt(int x,int y)
-    {
-        Chunk chunk = GetChunk(x, y);
-        if (chunk != null)
-        {
-            return chunk.tiles[x - (int)chunk.transform.position.x, y - (int)chunk.transform.position.y];
-        }
-        return null;
-    }
-
-    public Tile GetTileAt(float x, float y)
-    {
-        int X = Mathf.FloorToInt(x);
-        int Y = Mathf.FloorToInt(y);
-        Chunk chunk = GetChunk(X, Y);
-        if (chunk != null)
-        {
-            return chunk.tiles[X-(int)chunk.transform.position.x, Y-(int)chunk.transform.position.y];
-        }
-        return null;
-    }*/
 }

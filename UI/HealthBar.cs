@@ -1,25 +1,26 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using Player;
-using PixelCrushers;
 
 
 public class HealthBar : MonoBehaviour
 {
-    public GameObject health;
-    public float healthMax, healthNew;
-    public PlayerStats Player;
-    public DAMAGE damage;
+    private GameObject health;
+    private float healthMax, healthNew;
+    private PlayerStats PlayerStats;
+    private GameObject player;
+    private PlayerDamageHandler damage;
 
     private void Awake()
     {
         health = this.gameObject;
+        player = GameObject.FindGameObjectWithTag("Player");
+        PlayerStats = player.GetComponent<PlayerStats>();
+        damage = player.GetComponent<PlayerDamageHandler>();
     }
 
     void OnEnable()
     {
-        healthMax = Player.PlayerHP;       
+        healthMax = PlayerStats.PlayerHP;       
         healthNew = damage.currentHealth;
     }
 
@@ -28,13 +29,8 @@ public class HealthBar : MonoBehaviour
         healthNew = damage.currentHealth;
 
         if (healthNew<0)
-        {
             healthNew = 0;
-        }
 
-        else
-        {
-            health.transform.localScale = new Vector3((healthNew / healthMax), 1, 1);
-        }       
+        health.transform.localScale = new Vector3((healthNew / healthMax), 1, 1);           
     }
 }

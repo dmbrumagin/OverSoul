@@ -9,10 +9,10 @@ public class tilepositions : MonoBehaviour
     void Awake()
     {
         tileMap = transform.GetComponent<Tilemap>();
-        tilePos(PlatformLoad.availablePlaces);
+        tilePos(PlatformLoad.tileLocations);
     }
  
-    public void tilePos(List<Vector3> availablePlaces)
+    public void tilePos(List<Vector3> tileLocations)
     {
         for (int n = tileMap.cellBounds.xMin; n <tileMap.cellBounds.xMax; n++)
         {
@@ -22,13 +22,7 @@ public class tilepositions : MonoBehaviour
                 Vector3 place = tileMap.CellToWorld(localPlace);
                 
                 if (tileMap.HasTile(localPlace))
-                {
-                    availablePlaces.Add(place);                    
-                }
-                else
-                {
-                    //No tile at "place"
-                }
+                    tileLocations.Add(place);    
             }
         }
     }

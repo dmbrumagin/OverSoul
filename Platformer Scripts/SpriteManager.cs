@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class SpriteManager : MonoBehaviour {
@@ -11,18 +10,11 @@ public class SpriteManager : MonoBehaviour {
     {        
         instance = this;
         tileSprites = new Dictionary<string, Sprite>();
-        LoadSprites();        
+        LoadSprites();
     }
 
     void LoadSprites()
     {
-        Sprite[] sprites =   Resources.LoadAll<Sprite>("Placeholder Tiles");        
-
-        foreach (Sprite s in sprites)
-        {
-            tileSprites.Add(s.name, s);            
-        }
-
         Sprite[] spritestop = Resources.LoadAll<Sprite>("TEST");
 
         foreach (Sprite s in spritestop)
@@ -31,12 +23,12 @@ public class SpriteManager : MonoBehaviour {
         }        
     }
     
-    public Sprite GetSprite (Tile tile)
+    public Sprite GetSprite (TopTile tile)
     {      
-        if (tileSprites.ContainsKey(tile.type.ToString()))
-            return tileSprites[tile.type.ToString()];
+        if (tileSprites.ContainsKey(tile.topTileType.ToString()))
+            return tileSprites[tile.topTileType.ToString()];
         
-       Debug.LogError("Unrecognized tile type:" + tile.type.ToString());
+       Debug.LogError("Unrecognized tile type:" + tile.topTileType.ToString());
        return null;        
     }   
 }
